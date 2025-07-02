@@ -88,11 +88,13 @@ app.use(notFound);
 // Middleware de tratamento de erros
 app.use(errorHandler);
 
-// Iniciar servidor
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
-  console.log(`📱 Ambiente: ${process.env.NODE_ENV}`);
-  console.log(`🌐 URL: http://localhost:${PORT}`);
-});
+// Iniciar servidor (apenas localmente)
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`🚀 Servidor rodando na porta ${PORT}`);
+    console.log(`📱 Ambiente: ${process.env.NODE_ENV}`);
+    console.log(`🌐 URL: http://localhost:${PORT}`);
+  });
+}
 
 export default app;
