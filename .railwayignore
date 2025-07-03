@@ -1,0 +1,10 @@
+﻿node_modules/
+.git/
+*.log
+.env
+.env.local
+backend/
+api/
+supabase/
+vercel.json
+.vercelignore
