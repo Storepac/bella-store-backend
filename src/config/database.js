@@ -25,7 +25,10 @@ pool.on('connect', () => {
 // Evento de erro
 pool.on('error', (err) => {
   console.error('❌ Erro na conexão com o banco de dados:', err);
-  process.exit(-1);
+  // Em produção, não mata o processo imediatamente
+  if (process.env.NODE_ENV !== 'production') {
+    process.exit(-1);
+  }
 });
 
 // Função para executar queries
