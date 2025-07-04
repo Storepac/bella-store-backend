@@ -1,25 +1,21 @@
-import pg from 'pg';
+import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const { Pool } = pg;
-
-// Configuração do pool de conexões
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'ecommerce_multi_loja',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD,
-  max: 20, // máximo de conexões no pool
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+export const pool = mysql.createPool({
+  host: '127.0.0.1',
+  user: 'root',
+  password: '',
+  database: 'bella_store',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
 
 // Evento de conexão
 pool.on('connect', () => {
-  console.log('✅ Conectado ao banco de dados PostgreSQL');
+  console.log('✅ Conectado ao banco de dados MySQL');
 });
 
 // Evento de erro
@@ -29,29 +25,21 @@ pool.on('error', (err) => {
 });
 
 // Função para executar queries
-export const query = async (text, params) => {
-  const start = Date.now();
-  try {
-    const res = await pool.query(text, params);
-    const duration = Date.now() - start;
-    console.log('📊 Query executada:', { text, duration, rows: res.rowCount });
-    return res;
-  } catch (error) {
-    console.error('❌ Erro na query:', error);
-    throw error;
-  }
+export const query = async (sql, params) => {
+  const [rows] = await pool.execute(sql, params);
+  return rows;
 };
 
 // Função para transações
 export const transaction = async (callback) => {
-  const client = await pool.connect();
+  const client = await pool.getConnection();
   try {
-    await client.query('BEGIN');
+    await client.beginTransaction();
     const result = await callback(client);
-    await client.query('COMMIT');
+    await client.commit();
     return result;
   } catch (error) {
-    await client.query('ROLLBACK');
+    await client.rollback();
     throw error;
   } finally {
     client.release();

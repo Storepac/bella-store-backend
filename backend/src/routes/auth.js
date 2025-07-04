@@ -17,67 +17,82 @@ const generateToken = (userId) => {
 };
 
 // POST /api/auth/login
-router.post('/login', validate(schemas.login), async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, codigo, password } = req.body;
 
-    // Buscar usuário
-    const userResult = await query(
-      'SELECT * FROM users WHERE email = $1 AND is_active = true',
-      [email]
+    let user = null;
+
+    if (email) {
+      // Login admin master por e-mail
+      const userResult = await query(
+        'SELECT * FROM users WHERE email = ? AND tipo = ?',
+        [email, 'admin_master']
+      );
+      if (userResult.length > 0) {
+        user = userResult[0];
+      }
+    } else if (codigo) {
+      // Login lojista por código da loja
+      // 1. Busca a loja pelo código
+      const lojaResult = await query(
+        'SELECT id FROM stores WHERE LOWER(codigo) = LOWER(?)',
+        [codigo]
+      );
+      if (lojaResult.length === 0) {
+        return res.status(401).json({
+          success: false,
+          message: 'Código da loja incorreto'
+        });
+      }
+      const storeId = lojaResult[0].id;
+      // 2. Busca o usuário vinculado à loja
+      const userResult = await query(
+        'SELECT * FROM users WHERE storeId = ? AND tipo = ?',
+        [storeId, 'admin_loja']
+      );
+      if (userResult.length > 0) {
+        user = userResult[0];
+      }
+    }
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuário não encontrado ou credenciais inválidas'
+      });
+    }
+
+    // Verificar senha (texto puro, por enquanto)
+    const isValidPassword = password === user.senha;
+
+    if (!isValidPassword) {
+      return res.status(401).json({
+        success: false,
+        message: 'Senha incorreta'
+      });
+    }
+
+    // Gerar token JWT
+    const token = jwt.sign(
+      { 
+        userId: user.id, 
+        email: user.email, 
+        tipo: user.tipo,
+        storeId: user.storeId || null
+      },
+      process.env.JWT_SECRET || 'segredo',
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 
-    if (userResult.rows.length === 0) {
-      return res.status(401).json({
-        success: false,
-        message: 'Email ou senha incorretos'
-      });
-    }
-
-    const user = userResult.rows[0];
-
-    // Verificar senha
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Email ou senha incorretos'
-      });
-    }
-
-    // Buscar informações adicionais baseadas no role
-    let additionalInfo = {};
-    
-    if (user.role === 'admin_master') {
-      const adminResult = await query(
-        'SELECT permissions FROM admin_users WHERE user_id = $1',
-        [user.id]
-      );
-      additionalInfo.permissions = adminResult.rows[0]?.permissions || {};
-    } else if (user.role === 'store_owner') {
-      const storeResult = await query(`
-        SELECT s.*, su.permissions 
-        FROM stores s 
-        JOIN store_users su ON s.id = su.store_id 
-        WHERE su.user_id = $1 AND s.is_active = true
-      `, [user.id]);
-      additionalInfo.stores = storeResult.rows;
-    }
-
-    // Gerar token
-    const token = generateToken(user.id);
-
     // Remover senha do retorno
-    const { password_hash, ...userWithoutPassword } = user;
+    const { senha, ...userWithoutPassword } = user;
 
     res.json({
       success: true,
       message: 'Login realizado com sucesso',
       data: {
-        user: {
-          ...userWithoutPassword,
-          ...additionalInfo
-        },
+        user: userWithoutPassword,
         token
       }
     });
