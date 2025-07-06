@@ -33,26 +33,44 @@ router.post('/login', async (req, res) => {
         user = userResult[0];
       }
     } else if (codigo) {
+      const codigoLimpo = codigo.trim().toLowerCase();
       // Login lojista por código da loja
-      // 1. Busca a loja pelo código
-      const lojaResult = await query(
-        'SELECT id FROM stores WHERE LOWER(codigo) = LOWER(?)',
-        [codigo]
+      let lojaResult = await query(
+        'SELECT id, isActive FROM stores WHERE LOWER(store_code)=LOWER(?)',
+        [codigoLimpo]
       );
+      // Se não encontrou por store_code, tenta por codigo
       if (lojaResult.length === 0) {
-        return res.status(401).json({
-          success: false,
-          message: 'Código da loja incorreto'
-        });
+        lojaResult = await query(
+          'SELECT id, isActive FROM stores WHERE LOWER(codigo)=LOWER(?)',
+          [codigoLimpo]
+        );
+      }
+      if (lojaResult.length === 0) {
+        return res.status(401).json({ success: false, message: 'Código da loja incorreto' });
+      }
+      if (!lojaResult[0].isActive) {
+        return res.status(403).json({ success:false, message:'Loja pausada – contate o administrador.' });
       }
       const storeId = lojaResult[0].id;
-      // 2. Busca o usuário vinculado à loja
-      const userResult = await query(
-        'SELECT * FROM users WHERE storeId = ? AND tipo = ?',
-        [storeId, 'admin_loja']
-      );
+      let userResult = await query('SELECT * FROM users WHERE storeId = ? AND tipo = ?', [storeId, 'admin_loja']);
       if (userResult.length > 0) {
         user = userResult[0];
+      } else {
+        // Não existe usuário admin_loja ainda, vamos buscar a senha da loja e validar
+        const storeSenhaRes = await query('SELECT name, email, senha FROM stores WHERE id = ?', [storeId]);
+        if (storeSenhaRes.length === 0) {
+          return res.status(401).json({ success:false, message:'Loja não encontrada' });
+        }
+        const storeRow = storeSenhaRes[0];
+        const isPassOk = await bcrypt.compare(password, storeRow.senha);
+        if (!isPassOk) {
+          return res.status(401).json({ success:false, message:'Senha incorreta' });
+        }
+        // Criar usuário admin_loja automaticamente
+        const insertUser = await query('INSERT INTO users (name, email, senha, tipo, storeId) VALUES (?,?,?,?,?)', [storeRow.name || codigo, storeRow.email || `${codigo}@example.com`, storeRow.senha, 'admin_loja', storeId]);
+        const newUserId = insertUser.insertId;
+        user = { id: newUserId, name: storeRow.name, email: storeRow.email, senha: storeRow.senha, tipo: 'admin_loja', storeId };
       }
     }
 
@@ -64,7 +82,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Verificar senha (texto puro, por enquanto)
-    const isValidPassword = password === user.senha;
+    const isValidPassword = await bcrypt.compare(password, user.senha);
 
     if (!isValidPassword) {
       return res.status(401).json({
