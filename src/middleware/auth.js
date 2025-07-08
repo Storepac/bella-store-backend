@@ -13,22 +13,22 @@ export const authenticate = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'segredo');
     
     // Buscar usuário no banco
     const userResult = await query(
-      'SELECT * FROM users WHERE id = $1 AND is_active = true',
+      'SELECT * FROM users WHERE id = ? AND isActive = true',
       [decoded.userId]
     );
 
-    if (userResult.rows.length === 0) {
+    if (userResult.length === 0) {
       return res.status(401).json({
         success: false,
         message: 'Usuário não encontrado ou inativo'
       });
     }
 
-    req.user = userResult.rows[0];
+    req.user = userResult[0];
     next();
   } catch (error) {
     console.error('Erro na autenticação:', error);

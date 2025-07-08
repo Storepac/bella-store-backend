@@ -17,6 +17,7 @@ import orderRoutes from './routes/orders.js';
 import bannerRoutes from './routes/banners.js';
 import uploadRoutes from './routes/upload.js';
 import dashboardRoutes from './routes/dashboard.js';
+import healthRoutes from './routes/health.js';
 
 // Importar middlewares
 import { errorHandler } from './middleware/errorHandler.js';
@@ -32,43 +33,50 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutos
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // máximo 100 requests por IP
-  message: {
-    error: 'Muitas tentativas. Tente novamente em alguns minutos.'
-  }
-});
-
-// Middlewares globais
-app.use(express.json());
-
-// CORS
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://192.168.20.146:3000'
-];
-app.use(cors({
+// Configuração de CORS dinâmica
+const corsOptions = {
   origin: function (origin, callback) {
+    const allowedOrigins = process.env.CORS_ORIGINS 
+      ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+      : ['http://localhost:3000', 'http://localhost:3001'];
+    
+    // Permitir requisições sem origin (ex: Postman, aplicações mobile)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
     } else {
-      return callback(new Error('Not allowed by CORS'));
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['X-Total-Count', 'X-Page', 'X-Per-Page']
+};
+
+// Middlewares globais
+app.use(cors(corsOptions));
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
-
-// Só depois os outros middlewares!
-app.use(morgan('combined'));
-app.use(limiter);
-
-// Body parsing
+app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Logger apenas em desenvolvimento
+if (process.env.NODE_ENV !== 'production') {
+  app.use(morgan('dev'));
+}
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100, // limite de requisições
+  message: 'Muitas requisições deste IP, tente novamente mais tarde.'
+});
+
+app.use('/api/', limiter);
 
 // Servir arquivos estáticos (uploads)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
@@ -84,6 +92,7 @@ app.get('/health', (req, res) => {
 });
 
 // Rotas da API
+app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/stores', storeRoutes);
 app.use('/api/products', productRoutes);
