@@ -82,7 +82,7 @@ app.use('/api/', limiter);
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/health', healthRoutes, (req, res) => {
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
