@@ -68,40 +68,106 @@ router.get('/users', authenticate, requireAdminMaster, async (req, res) => {
 // POST /api/admin/stores - Criar nova loja (admin master)
 router.post('/stores', authenticate, requireAdminMaster, async (req, res) => {
   try {
-    const { name, email, whatsapp, description } = req.body;
+    const { 
+      name, 
+      email, 
+      whatsapp, 
+      description,
+      cnpj,
+      inscricao_estadual,
+      endereco,
+      instagram,
+      facebook,
+      youtube,
+      horarios,
+      politicas_troca,
+      politicas_gerais,
+      plan = 'Start',
+      store_code,
+      password
+    } = req.body;
 
-    // Criar loja
+    // Importar bcrypt para hash da senha
+    const bcrypt = await import('bcryptjs');
+    
+    // Gerar hash da senha
+    const senha = password ? await bcrypt.hash(password, 12) : '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/5QqQqQq'; // senha padrão: 123
+
+    // Primeiro, inserir a loja sem o store_code
     const storeResult = await query(`
-      INSERT INTO stores (name, email, whatsapp, description, store_code, codigo, senha, isActive) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, true)
+      INSERT INTO stores (
+        name, email, whatsapp, description, cnpj, inscricao_estadual,
+        endereco, instagram, facebook, youtube, horarios,
+        politicas_troca, politicas_gerais, senha, isActive
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)
     `, [
       name, 
       email, 
       whatsapp, 
       description,
-      `STORE${String(storeResult.insertId).padStart(3, '0')}`,
-      `STORE${String(storeResult.insertId).padStart(3, '0')}`,
-      '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/5QqQqQq' // senha: 123
+      cnpj,
+      inscricao_estadual,
+      endereco,
+      instagram,
+      facebook,
+      youtube,
+      horarios,
+      politicas_troca,
+      politicas_gerais,
+      senha
     ]);
 
     const storeId = storeResult.insertId;
+    
+    // Gerar store_code e codigo baseados no ID
+    const generatedStoreCode = store_code || `STORE${String(storeId).padStart(3, '0')}`;
+    const codigo = generatedStoreCode;
+    
+    // Atualizar a loja com o store_code e codigo
+    await query(`
+      UPDATE stores 
+      SET store_code = ?, codigo = ?
+      WHERE id = ?
+    `, [generatedStoreCode, codigo, storeId]);
 
-    // Criar configurações padrão
+    // Criar configurações padrão baseadas no plano
+    const limitesPorPlano = {
+      'Start': { produtos: 500, fotos: 2 },
+      'Pro': { produtos: 1000, fotos: 3 },
+      'Max': { produtos: 9999, fotos: 4 }
+    };
+    
+    const limites = limitesPorPlano[plan] || limitesPorPlano['Start'];
+    
     await query(`
       INSERT INTO settings (storeId, plano, limite_produtos, limite_fotos_produto) 
-      VALUES (?, 'Start', 500, 2)
-    `, [storeId]);
+      VALUES (?, ?, ?, ?)
+    `, [storeId, plan, limites.produtos, limites.fotos]);
 
     // Criar aparência padrão
     await query(`
       INSERT INTO appearance (storeId, cor_primaria, cor_secundaria, cor_botoes) 
       VALUES (?, '#000000', '#666666', '#000000')
     `, [storeId]);
+    
+    // Criar usuário admin_loja
+    await query(`
+      INSERT INTO users (name, email, senha, tipo, storeId, isActive) 
+      VALUES (?, ?, ?, 'admin_loja', ?, true)
+    `, [
+      name, 
+      email || `${generatedStoreCode}@example.com`, 
+      senha, 
+      storeId
+    ]);
 
     res.status(201).json({
       success: true,
       message: 'Loja criada com sucesso',
-      data: { storeId }
+      data: { 
+        id: storeId,
+        store_code: generatedStoreCode
+      }
     });
   } catch (error) {
     console.error('Erro ao criar loja:', error);
@@ -115,18 +181,18 @@ router.post('/stores', authenticate, requireAdminMaster, async (req, res) => {
 // GET /api/admin/overview - Visão geral do sistema (admin master)
 router.get('/overview', authenticate, requireAdminMaster, async (req, res) => {
   try {
-    const [totalStores] = await query('SELECT COUNT(*) as count FROM stores');
-    const [totalUsers] = await query('SELECT COUNT(*) as count FROM users');
-    const [totalProducts] = await query('SELECT COUNT(*) as count FROM products');
-    const [totalOrders] = await query('SELECT COUNT(*) as count FROM orders');
+    const [totalStoresResult] = await query('SELECT COUNT(*) as count FROM stores');
+    const [totalUsersResult] = await query('SELECT COUNT(*) as count FROM users');
+    const [totalProductsResult] = await query('SELECT COUNT(*) as count FROM products');
+    const [totalOrdersResult] = await query('SELECT COUNT(*) as count FROM orders');
 
     res.json({
       success: true,
       data: {
-        totalStores: totalStores.count,
-        totalUsers: totalUsers.count,
-        totalProducts: totalProducts.count,
-        totalOrders: totalOrders.count
+        totalStores: totalStoresResult.count,
+        totalUsers: totalUsersResult.count,
+        totalProducts: totalProductsResult.count,
+        totalOrders: totalOrdersResult.count
       }
     });
   } catch (error) {

@@ -41,8 +41,8 @@ export const query = async (sql, params = []) => {
   let retries = 3;
   while (retries > 0) {
     try {
-      const [rows] = await pool.execute(sql, params);
-      return rows;
+  const [rows] = await pool.execute(sql, params);
+  return rows;
     } catch (error) {
       retries--;
       console.error(`❌ Erro na query (tentativas restantes: ${retries}):`, error.message);

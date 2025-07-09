@@ -32,6 +32,7 @@ CREATE TABLE users (
     senha VARCHAR(255) NOT NULL,
     tipo ENUM('admin_master', 'admin_loja') DEFAULT 'admin_loja',
     storeId INT,
+    isActive BOOLEAN DEFAULT TRUE,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (storeId) REFERENCES stores(id) ON DELETE SET NULL
