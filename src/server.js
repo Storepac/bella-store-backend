@@ -43,9 +43,15 @@ const corsOptions = {
     // Permitir requisições sem origin (ex: Postman, aplicações mobile)
     if (!origin) return callback(null, true);
     
+    // Em produção, permitir todas as origens do Dokploy
+    if (process.env.NODE_ENV === 'production' && origin.includes('dokploy.com')) {
+      return callback(null, true);
+    }
+    
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
+      console.log(`🚫 Origem não permitida: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },

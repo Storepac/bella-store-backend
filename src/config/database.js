@@ -3,9 +3,9 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-export const pool = mysql.createPool({
-  host: process.env.DB_HOST || '127.0.0.1',
-  port: process.env.DB_PORT || 3306,
+const dbConfig = {
+  host: process.env.DB_HOST || 'bella-mysql-2zfoqj',
+  port: parseInt(process.env.DB_PORT) || 3306,
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'bella_store',
@@ -13,53 +13,77 @@ export const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   connectTimeout: 60000,
+  acquireTimeout: 60000,
+  timeout: 60000,
   enableKeepAlive: true,
-  keepAliveInitialDelay: 0
-});
+  keepAliveInitialDelay: 0,
+  reconnect: true,
+  charset: 'utf8mb4',
+  timezone: '+00:00'
+};
+
+export const pool = mysql.createPool(dbConfig);
 
 // Evento de conexão
-pool.on('connect', () => {
-  console.log('✅ Conectado ao banco de dados MySQL');
+pool.on('connection', (connection) => {
+  console.log('✅ Nova conexão estabelecida com o banco de dados MySQL');
 });
 
 // Evento de erro
 pool.on('error', (err) => {
   console.error('❌ Erro na conexão com o banco de dados:', err);
-  process.exit(-1);
+  if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+    console.log('🔄 Tentando reconectar...');
+  } else {
+    throw err;
+  }
 });
 
-// Função para executar queries
-export const query = async (sql, params) => {
-  const [rows] = await pool.execute(sql, params);
-  return rows;
+// Função para executar queries com retry
+export const query = async (sql, params = []) => {
+  let retries = 3;
+  while (retries > 0) {
+    try {
+      const [rows] = await pool.execute(sql, params);
+      return rows;
+    } catch (error) {
+      retries--;
+      console.error(`❌ Erro na query (tentativas restantes: ${retries}):`, error.message);
+      if (retries === 0) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
 };
 
 // Função para transações
 export const transaction = async (callback) => {
-  const client = await pool.getConnection();
+  const connection = await pool.getConnection();
   try {
-    await client.beginTransaction();
-    const result = await callback(client);
-    await client.commit();
+    await connection.beginTransaction();
+    const result = await callback(connection);
+    await connection.commit();
     return result;
   } catch (error) {
-    await client.rollback();
+    await connection.rollback();
     throw error;
   } finally {
-    client.release();
+    connection.release();
   }
 };
 
 // Função para testar conexão
 export const testConnection = async () => {
   try {
-    const result = await query('SELECT NOW()');
-    console.log('✅ Teste de conexão bem-sucedido:', result.rows[0]);
+    const result = await query('SELECT NOW() as current_time');
+    console.log('✅ Teste de conexão bem-sucedido:', result[0]);
     return true;
   } catch (error) {
-    console.error('❌ Falha no teste de conexão:', error);
+    console.error('❌ Falha no teste de conexão:', error.message);
     return false;
   }
 };
+
+// Testar conexão ao inicializar
+testConnection();
 
 export default pool;
