@@ -9,6 +9,7 @@
     "start": "node src/server.js",
     "test": "jest",
     "setup-db": "node setup-database.js",
+    "create-admin": "node create-admin.js",
     "build": "echo 'Backend build complete'"
   },
   "dependencies": {
