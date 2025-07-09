@@ -48,3 +48,11 @@ Thumbs.db
 # Build
 dist/
 build/
+
+# Temporary files
+*.tmp
+*.temp
+test-*.js
+debug-*.md
+*-config.md
+*-setup.md
