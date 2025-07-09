@@ -8,7 +8,7 @@ const dbConfig = {
   host: process.env.DB_HOST || 'bella-mysql-2zfoqj',
   port: parseInt(process.env.DB_PORT) || 3306,
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
+  password: process.env.DB_PASSWORD || 'gzsexpaiz33cirzeorjk2iuhzawiq1na',
   database: process.env.DB_NAME || 'bella_store',
   multipleStatements: true
 };
