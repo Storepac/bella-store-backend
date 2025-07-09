@@ -43,8 +43,9 @@ const corsOptions = {
     // Permitir requisições sem origin (ex: Postman, aplicações mobile)
     if (!origin) return callback(null, true);
     
-    // Em produção, permitir todas as origens do Dokploy
-    if (process.env.NODE_ENV === 'production' && origin.includes('dokploy.com')) {
+    // Em produção, permitir todas as origens do Dokploy e traefik
+    if (process.env.NODE_ENV === 'production' && 
+        (origin.includes('dokploy.com') || origin.includes('traefik.me'))) {
       return callback(null, true);
     }
     
