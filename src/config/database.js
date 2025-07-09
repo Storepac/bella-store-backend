@@ -13,11 +13,8 @@ const dbConfig = {
   connectionLimit: 10,
   queueLimit: 0,
   connectTimeout: 60000,
-  acquireTimeout: 60000,
-  timeout: 60000,
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
-  reconnect: true,
   charset: 'utf8mb4',
   timezone: '+00:00'
 };
@@ -74,7 +71,7 @@ export const transaction = async (callback) => {
 // Função para testar conexão
 export const testConnection = async () => {
   try {
-    const result = await query('SELECT NOW() as current_time');
+    const result = await query('SELECT NOW() as current_time_db');
     console.log('✅ Teste de conexão bem-sucedido:', result[0]);
     return true;
   } catch (error) {
