@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 
 // Importar rotas
 import authRoutes from './routes/auth.js';
+import adminRoutes from './routes/admin.js';
 import storeRoutes from './routes/stores.js';
 import productRoutes from './routes/products.js';
 import categoryRoutes from './routes/categories.js';
@@ -104,6 +105,7 @@ app.get('/health', healthRoutes, (req, res) => {
 // Rotas da API
 app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/stores', storeRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
