@@ -33,6 +33,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Configurar trust proxy para funcionar com Dokploy/Traefik
+app.set('trust proxy', 1);
+
 // Configuração de CORS dinâmica
 const corsOptions = {
   origin: function (origin, callback) {
