@@ -66,12 +66,33 @@ async function createTables() {
     
     // Ler o arquivo SQL
     const sqlContent = fs.readFileSync('banco_bella_store.sql', 'utf8');
-    
-    // Executar o SQL
-    await connection.execute(sqlContent);
-    
+
+    // Desabilita verificação de chave estrangeira temporariamente
+    await connection.query('SET FOREIGN_KEY_CHECKS=0');
+
+    // Quebra o arquivo em declarações individuais (pelo ponto-e-vírgula no final da linha)
+    const statements = sqlContent
+      // Remove comentários '--'
+      .replace(/--[^\n]*\n/g, '\n')
+      // Remove linhas vazias
+      .split(/;\s*(?:\n|$)/)
+      .map(stmt => stmt.trim())
+      .filter(stmt => stmt.length);
+
+    for (const statement of statements) {
+      try {
+        await connection.query(statement);
+      } catch (err) {
+        console.error(`❌ Erro ao executar statement:\n${statement.substring(0, 80)}...`, err.message);
+        throw err; // Re-lança para cair no catch externo
+      }
+    }
+
+    // Reabilita verificação de chave estrangeira
+    await connection.query('SET FOREIGN_KEY_CHECKS=1');
+
     console.log('✅ Tabelas criadas com sucesso!');
-    
+
     await connection.end();
     return true;
   } catch (error) {
