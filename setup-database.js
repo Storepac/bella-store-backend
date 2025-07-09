@@ -79,12 +79,15 @@ async function createTables() {
       .map(stmt => stmt.trim())
       .filter(stmt => stmt.length);
 
-    for (const statement of statements) {
+    for (let i = 0; i < statements.length; i++) {
+      const statement = statements[i];
       try {
         await connection.query(statement);
       } catch (err) {
-        console.error(`❌ Erro ao executar statement:\n${statement.substring(0, 80)}...`, err.message);
-        throw err; // Re-lança para cair no catch externo
+        console.error(`\n❌ ERRO NA INSTRUÇÃO #${i + 1}:`);
+        console.error(`${statement.substring(0, 500)}\n--- fim do trecho ---`);
+        console.error('Mensagem do MySQL:', err.message);
+        throw err; // Re-lança para o catch externo
       }
     }
 
