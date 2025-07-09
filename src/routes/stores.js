@@ -14,7 +14,7 @@ router.get('/', async (req, res) => {
       WHERE is_active = true
       ORDER BY store_name
     `);
-    res.json({ success: true, data: storesResult.rows });
+    res.json({ success: true, data: storesResult });
   } catch (error) {
     console.error('Erro ao listar lojas:', error);
     res.status(500).json({ success: false, message: 'Erro interno do servidor' });
@@ -115,12 +115,13 @@ router.post('/', authenticate, requireStoreAdmin, async (req, res) => {
     // Gerar store_code baseado no ID
     const generatedStoreCode = store_code || `STORE${String(storeId).padStart(3, '0')}`;
     
-    // Atualizar a loja com o store_code
+    // Atualizar a loja com o store_code e dados adicionais
     await query(`
       UPDATE stores 
-      SET store_code = ?
+      SET store_code = ?, store_name = ?, store_description = ?, 
+          whatsapp_number = ?, address = ?, is_active = true
       WHERE id = ?
-    `, [generatedStoreCode, storeId]);
+    `, [generatedStoreCode, name, description, whatsapp, endereco, storeId]);
 
     // Criar configurações padrão
     const limitesPorPlano = {
@@ -193,12 +194,13 @@ router.put('/:id', authenticate, requireStoreAdmin, async (req, res) => {
         name = ?, email = ?, whatsapp = ?, description = ?,
         cnpj = ?, inscricao_estadual = ?, endereco = ?,
         instagram = ?, facebook = ?, youtube = ?, horarios = ?,
-        politicas_troca = ?, politicas_gerais = ?
+        politicas_troca = ?, politicas_gerais = ?,
+        store_name = ?, store_description = ?, whatsapp_number = ?, address = ?
       WHERE id = ?
     `, [
       name, email, whatsapp, description, cnpj, inscricao_estadual,
       endereco, instagram, facebook, youtube, horarios,
-      politicas_troca, politicas_gerais, id
+      politicas_troca, politicas_gerais, name, description, whatsapp, endereco, id
     ]);
 
     if (result.affectedRows === 0) {
@@ -235,7 +237,7 @@ router.delete('/:id', authenticate, requireStoreAdmin, async (req, res) => {
     }
 
     const result = await query(`
-      UPDATE stores SET isActive = false WHERE id = ?
+      UPDATE stores SET isActive = false, is_active = false WHERE id = ?
     `, [id]);
 
     if (result.affectedRows === 0) {
@@ -269,10 +271,10 @@ router.get('/code/:storeCode', async (req, res) => {
       FROM stores
       WHERE store_code = ? AND is_active = true
     `, [storeCode]);
-    if (storeResult.rows.length === 0) {
+    if (storeResult.length === 0) {
       return res.status(404).json({ success: false, message: 'Loja não encontrada' });
     }
-    res.json({ success: true, data: storeResult.rows[0] });
+    res.json({ success: true, data: storeResult[0] });
   } catch (error) {
     console.error('Erro ao buscar loja por código:', error);
     res.status(500).json({ success: false, message: 'Erro interno do servidor' });
@@ -293,10 +295,10 @@ router.get('/:id', async (req, res) => {
       FROM stores
       WHERE id = ? AND is_active = true
     `, [id]);
-    if (storeResult.rows.length === 0) {
+    if (storeResult.length === 0) {
       return res.status(404).json({ success: false, message: 'Loja não encontrada' });
     }
-    res.json({ success: true, data: storeResult.rows[0] });
+    res.json({ success: true, data: storeResult[0] });
   } catch (error) {
     console.error('Erro ao buscar loja por id:', error);
     res.status(500).json({ success: false, message: 'Erro interno do servidor' });
@@ -311,14 +313,14 @@ router.get('/resolve-store', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Host não informado.' });
     }
 
-    const [rows] = await query(
+    const rows = await query(
       'SELECT id, name FROM stores WHERE domain = ? OR subdomain = ? LIMIT 1',
       [host, host]
     );
 
     if (rows.length === 0) {
       // Fallback: se não achar, tenta com um storeId padrão para desenvolvimento
-      const [defaultStore] = await query('SELECT id, name FROM stores WHERE id = ? LIMIT 1', [1]);
+      const defaultStore = await query('SELECT id, name FROM stores WHERE id = ? LIMIT 1', [1]);
       if (defaultStore.length > 0) {
         return res.json({ success: true, storeId: defaultStore[0].id, store: defaultStore[0] });
       }
