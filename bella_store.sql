@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Tempo de geração: 09/07/2025 às 21:43
+-- Tempo de geração: 10/07/2025 às 05:10
 -- Versão do servidor: 10.4.32-MariaDB
 -- Versão do PHP: 8.2.12
 
@@ -44,7 +44,8 @@ CREATE TABLE `appearance` (
 --
 
 INSERT INTO `appearance` (`id`, `storeId`, `cor_primaria`, `cor_secundaria`, `cor_botoes`, `fonte`, `outras_opcoes`, `createdAt`, `updatedAt`) VALUES
-(1, 1, '#000000', '#666666', '#000000', NULL, NULL, '2025-07-09 16:27:23', '2025-07-09 16:27:23');
+(1, 1, '#000000', '#666666', '#000000', NULL, NULL, '2025-07-09 16:27:23', '2025-07-09 16:27:23'),
+(5, 5, '#000000', '#666666', '#000000', NULL, NULL, '2025-07-09 18:20:39', '2025-07-09 18:20:39');
 
 -- --------------------------------------------------------
 
@@ -90,6 +91,16 @@ CREATE TABLE `categories` (
   `createdAt` datetime DEFAULT current_timestamp(),
   `updatedAt` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Despejando dados para a tabela `categories`
+--
+
+INSERT INTO `categories` (`id`, `name`, `description`, `image`, `parentId`, `level`, `display`, `seo`, `slug`, `productCount`, `isActive`, `order`, `storeId`, `createdAt`, `updatedAt`) VALUES
+(1, 'Vestidos', 'Vestidos femininos elegantes', 'https://res.cloudinary.com/mkt-img-db/image/upload/v1751579049/samples/ecommerce/leather-bag-gray.jpg', NULL, 0, NULL, NULL, 'vestidos', 0, 1, 0, 1, '2025-07-09 21:55:16', '2025-07-09 21:55:16'),
+(2, 'Blusas', 'Blusas femininas confortáveis', 'https://res.cloudinary.com/mkt-img-db/image/upload/v1751579048/samples/landscapes/architecture-signs.jpg', NULL, 0, NULL, NULL, 'blusas', 0, 1, 0, 1, '2025-07-09 21:55:16', '2025-07-09 21:55:16'),
+(3, 'Calças', 'Calças femininas estilosas', 'https://res.cloudinary.com/mkt-img-db/image/upload/v1751579048/samples/sheep.jpg', NULL, 0, NULL, NULL, 'calcas', 0, 1, 0, 1, '2025-07-09 21:55:16', '2025-07-09 21:55:16'),
+(4, 'Acessórios', 'Acessórios femininos', 'https://res.cloudinary.com/mkt-img-db/image/upload/v1751579048/samples/food/fish-vegetables.jpg', NULL, 0, NULL, NULL, 'acessorios', 0, 1, 0, 1, '2025-07-09 21:55:16', '2025-07-09 21:55:16');
 
 -- --------------------------------------------------------
 
@@ -309,7 +320,8 @@ CREATE TABLE `settings` (
 --
 
 INSERT INTO `settings` (`id`, `storeId`, `moeda`, `fuso_horario`, `plano`, `data_expiracao_plano`, `status_pagamento`, `limite_produtos`, `limite_fotos_produto`, `createdAt`, `updatedAt`) VALUES
-(1, 1, 'BRL', 'America/Sao_Paulo', 'Start', NULL, 'ativo', 500, 2, '2025-07-09 16:27:23', '2025-07-09 16:27:23');
+(1, 1, 'BRL', 'America/Sao_Paulo', 'Start', NULL, 'ativo', 500, 2, '2025-07-09 16:27:23', '2025-07-09 16:27:23'),
+(5, 5, 'BRL', 'America/Sao_Paulo', 'Start', NULL, 'ativo', 500, 2, '2025-07-09 18:20:39', '2025-07-09 18:20:39');
 
 -- --------------------------------------------------------
 
@@ -359,7 +371,8 @@ CREATE TABLE `stores` (
 --
 
 INSERT INTO `stores` (`id`, `name`, `store_code`, `store_name`, `store_description`, `logo`, `logo_url`, `description`, `cnpj`, `inscricao_estadual`, `whatsapp`, `whatsapp_number`, `email`, `endereco`, `address`, `city`, `state`, `instagram`, `facebook`, `youtube`, `horarios`, `politicas_troca`, `politicas_gerais`, `primary_color`, `secondary_color`, `domain`, `subdomain`, `settings`, `senha`, `codigo`, `isActive`, `is_active`, `createdAt`, `updatedAt`) VALUES
-(1, 'teste', 'teste01', 'teste', '', NULL, NULL, '', '12345678999999', '', NULL, '', 'teste@teste', NULL, '', NULL, NULL, '', '', '', '', '', '', NULL, NULL, NULL, NULL, NULL, '$2a$12$a2UXEiHncva52V9JH9dPsubWkfzHKEvM0mZy2nz.zdthbnq8RCAxa', NULL, 1, 1, '2025-07-09 16:27:23', '2025-07-09 16:27:23');
+(1, 'teste', 'teste01', 'teste', '', NULL, NULL, '', '12345678999999', '', NULL, '', 'teste@teste', NULL, '', NULL, NULL, '', '', '', '', '', '', NULL, NULL, NULL, NULL, NULL, '$2a$12$a2UXEiHncva52V9JH9dPsubWkfzHKEvM0mZy2nz.zdthbnq8RCAxa', NULL, 1, 1, '2025-07-09 16:27:23', '2025-07-09 16:27:23'),
+(5, 'lojinha', 'LOJINHA005', 'lojinha', '', NULL, NULL, '', '123.234.545-56', '', NULL, '(14) 99614-5415', 'teste@testes', NULL, ',  - , /', NULL, NULL, '', '', '', '', '', '', NULL, NULL, NULL, NULL, NULL, '$2a$12$8Xo688nz2fyZdjGR9TiKYObM/ZOCb5wwXKeRjcPZqf17A4/LNGbVa', NULL, 1, 1, '2025-07-09 18:20:39', '2025-07-09 18:20:39');
 
 -- --------------------------------------------------------
 
@@ -385,7 +398,8 @@ CREATE TABLE `users` (
 
 INSERT INTO `users` (`id`, `name`, `email`, `senha`, `tipo`, `storeId`, `isActive`, `createdAt`, `updatedAt`) VALUES
 (1, 'Administrador Master', 'admin@admin', '$2a$12$zm0DoMiPDIgJE2ssjj354OlX/LUHrw4lTOGseEC9RniQGGXr4WGfG', 'admin_master', NULL, 1, '2025-07-09 14:32:40', '2025-07-09 14:32:40'),
-(2, 'teste', 'teste@teste', '$2a$12$a2UXEiHncva52V9JH9dPsubWkfzHKEvM0mZy2nz.zdthbnq8RCAxa', 'admin_loja', 1, 1, '2025-07-09 16:27:23', '2025-07-09 16:27:23');
+(2, 'teste', 'teste@teste', '$2a$12$a2UXEiHncva52V9JH9dPsubWkfzHKEvM0mZy2nz.zdthbnq8RCAxa', 'admin_loja', 1, 1, '2025-07-09 16:27:23', '2025-07-09 16:27:23'),
+(12, 'lojinha', 'teste@testes', '$2a$12$8Xo688nz2fyZdjGR9TiKYObM/ZOCb5wwXKeRjcPZqf17A4/LNGbVa', 'admin_loja', 5, 1, '2025-07-09 18:20:39', '2025-07-09 18:20:39');
 
 -- --------------------------------------------------------
 
@@ -548,7 +562,7 @@ ALTER TABLE `variant_options`
 -- AUTO_INCREMENT de tabela `appearance`
 --
 ALTER TABLE `appearance`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT de tabela `banners`
@@ -560,7 +574,7 @@ ALTER TABLE `banners`
 -- AUTO_INCREMENT de tabela `categories`
 --
 ALTER TABLE `categories`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT de tabela `clients`
@@ -620,19 +634,19 @@ ALTER TABLE `reports`
 -- AUTO_INCREMENT de tabela `settings`
 --
 ALTER TABLE `settings`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT de tabela `stores`
 --
 ALTER TABLE `stores`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT de tabela `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT de tabela `variant_options`
