@@ -88,7 +88,8 @@ router.post('/stores', authenticate, requireAdminMaster, async (req, res) => {
     } = req.body;
 
     // Importar bcrypt para hash da senha
-    const bcrypt = await import('bcryptjs');
+    const bcryptModule = await import('bcryptjs');
+    const bcrypt = bcryptModule.default || bcryptModule;
     
     // Gerar hash da senha
     const senha = password ? await bcrypt.hash(password, 12) : '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/5QqQqQq'; // senha padrão: 123
@@ -96,8 +97,8 @@ router.post('/stores', authenticate, requireAdminMaster, async (req, res) => {
     // Primeiro, inserir a loja sem o store_code
     const storeResult = await query(`
       INSERT INTO stores (
-        name, email, whatsapp, description, cnpj, inscricao_estadual,
-        endereco, instagram, facebook, youtube, horarios,
+        name, email, whatsapp_number, description, cnpj, inscricao_estadual,
+        address, instagram, facebook, youtube, horarios,
         politicas_troca, politicas_gerais, senha, isActive
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)
     `, [

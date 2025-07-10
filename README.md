@@ -16,64 +16,42 @@ Backend para sistema de e-commerce multi-loja com integração WhatsApp.
 ## 📋 Pré-requisitos
 
 - Node.js 18+
-- MySQL 8.0+
+- MySQL 8.0+ (XAMPP ou servidor remoto)
 - Conta no Cloudinary (opcional)
 
-## 🔧 Instalação
+## 🔧 Configuração
 
-1. **Clone o repositório**
-   ```bash
-   git clone <repository-url>
-   cd bella-store-backend
-   ```
+### 🏠 Configuração Local (XAMPP)
 
-2. **Instale as dependências**
+1. **Instale as dependências**
    ```bash
    npm install
    ```
 
-3. **Configure as variáveis de ambiente**
+2. **Configure para uso local**
    ```bash
-   cp .env.example .env
-   ```
-   
-   Edite o `.env` com suas configurações:
-   ```env
-   # Database
-   DB_HOST=bella-mysql-2zfoqj
-   DB_PORT=3306
-   DB_USER=root
-   DB_PASSWORD=sua_senha_aqui
-   DB_NAME=bella_store
-   
-   # JWT
-   JWT_SECRET=seu_jwt_secret_aqui
-   JWT_EXPIRES_IN=7d
-   
-   # Server
-   PORT=3001
-   NODE_ENV=production
-   
-   # CORS
-   CORS_ORIGINS=http://localhost:3000,https://seu-frontend.com
-   
-   # Cloudinary (opcional)
-   CLOUDINARY_CLOUD_NAME=seu_cloud_name
-   CLOUDINARY_API_KEY=sua_api_key
-   CLOUDINARY_API_SECRET=sua_api_secret
+   node switch-to-local.js
    ```
 
-4. **Configure o banco de dados**
+3. **Configure o XAMPP**
+   - Inicie o Apache e MySQL no XAMPP
+   - Crie o banco `bella_store` no phpMyAdmin
+   - Importe o arquivo `banco_bella_store.sql`
+
+4. **Inicie o servidor**
    ```bash
-   npm run setup-db
+   npm start
    ```
 
-5. **Inicie o servidor**
+### 🌐 Configuração Remota
+
+1. **Configure para uso remoto**
    ```bash
-   # Desenvolvimento
-   npm run dev
-   
-   # Produção
+   node switch-to-remote.js
+   ```
+
+2. **Inicie o servidor**
+   ```bash
    npm start
    ```
 
@@ -139,17 +117,17 @@ Authorization: Bearer <seu_token_jwt>
 
 ### Login
 ```bash
-curl -X POST http://localhost:3001/api/auth/login \
+curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin@teste.com",
-    "password": "admin123"
+    "password": "123"
   }'
 ```
 
 ### Criar Produto
 ```bash
-curl -X POST http://localhost:3001/api/products \
+curl -X POST http://localhost:3000/api/products \
   -H "Authorization: Bearer <seu_token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -161,16 +139,16 @@ curl -X POST http://localhost:3001/api/products \
   }'
 ```
 
-## 🐳 Docker
+## 🔄 Troca de Configuração
 
-Para executar com Docker:
-
+### Para Local (XAMPP)
 ```bash
-# Build da imagem
-docker build -t bella-store-backend .
+node switch-to-local.js
+```
 
-# Executar container
-docker run -p 3001:3001 --env-file .env bella-store-backend
+### Para Remoto
+```bash
+node switch-to-remote.js
 ```
 
 ## 📊 Monitoramento
@@ -183,7 +161,6 @@ docker run -p 3001:3001 --env-file .env bella-store-backend
 
 - `npm run dev` - Desenvolvimento com nodemon
 - `npm start` - Produção
-- `npm run setup-db` - Configurar banco de dados
 - `npm test` - Executar testes
 
 ## 📄 Licença

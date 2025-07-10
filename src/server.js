@@ -18,6 +18,7 @@ import orderRoutes from './routes/orders.js';
 import bannerRoutes from './routes/banners.js';
 import uploadRoutes from './routes/upload.js';
 import dashboardRoutes from './routes/dashboard.js';
+import storeDataRoutes from './routes/storeData.js';
 import healthRoutes from './routes/health.js';
 
 // Importar middlewares
@@ -32,42 +33,35 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+// Forçar porta 3001 SEMPRE
+const PORT = 3001;
 
 // Configurar trust proxy para funcionar com Dokploy/Traefik
 app.set('trust proxy', 1);
 
-// Configuração de CORS dinâmica
-const corsOptions = {
+// CORS configuration
+app.use(cors({
   origin: function (origin, callback) {
-    const allowedOrigins = process.env.CORS_ORIGINS 
-      ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
-      : ['http://localhost:3000', 'http://localhost:3001'];
+    // Permitir requests sem origin (como mobile apps ou Postman)
+    if (!origin) return callback(null, true)
     
-    // Permitir requisições sem origin (ex: Postman, aplicações mobile)
-    if (!origin) return callback(null, true);
-    
-    // Em produção, permitir todas as origens do Dokploy e traefik
-    if (process.env.NODE_ENV === 'production' && 
-        (origin.includes('dokploy.com') || origin.includes('traefik.me'))) {
-      return callback(null, true);
-    }
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'https://model-bella-store-2zfoqj.vercel.app',
+      'https://bella-store-frontend-2zfoqj.vercel.app'
+    ]
     
     if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
+      callback(null, true)
     } else {
-      console.log(`🚫 Origem não permitida: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+      callback(new Error('Not allowed by CORS'))
     }
   },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['X-Total-Count', 'X-Page', 'X-Per-Page']
-};
+  credentials: true
+}))
 
 // Middlewares globais
-app.use(cors(corsOptions));
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
@@ -113,6 +107,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/store-data', storeDataRoutes);
 
 // Middleware de erro 404
 app.use(notFound);
@@ -121,9 +116,8 @@ app.use(notFound);
 app.use(errorHandler);
 
 // Iniciar servidor
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
-  console.log(`📱 Ambiente: ${process.env.NODE_ENV}`);
   console.log(`🌐 URL: http://localhost:${PORT}`);
 });
 

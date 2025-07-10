@@ -4,12 +4,57 @@ import { authenticate, requireStoreAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Função para gerar código único da loja
+const generateUniqueStoreCode = async (storeName, storeId, customCode = null) => {
+  if (customCode) {
+    // Verificar se o código customizado já existe
+    const existing = await query(`
+      SELECT id FROM stores WHERE store_code = ? AND id != ?
+    `, [customCode, storeId]);
+    
+    if (existing.length > 0) {
+      throw new Error('Código da loja já existe');
+    }
+    return customCode;
+  }
+  
+  // Gerar código baseado no nome da loja
+  const cleanName = storeName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+    .replace(/[^a-z0-9]/g, '') // Remove caracteres especiais
+    .substring(0, 8); // Máximo 8 caracteres
+  
+  let baseCode = `${cleanName}${String(storeId).padStart(3, '0')}`.toUpperCase();
+  
+  // Verificar se o código já existe
+  const existingCode = await query(`
+    SELECT id FROM stores WHERE store_code = ? AND id != ?
+  `, [baseCode, storeId]);
+  
+  // Se existir, adicionar sufixo numérico
+  if (existingCode.length > 0) {
+    let counter = 1;
+    do {
+      baseCode = `${cleanName}${String(storeId).padStart(3, '0')}${counter}`.toUpperCase();
+      const checkCode = await query(`
+        SELECT id FROM stores WHERE store_code = ?
+      `, [baseCode]);
+      if (checkCode.length === 0) break;
+      counter++;
+    } while (counter < 100); // Limite de segurança
+  }
+  
+  return baseCode;
+};
+
 // GET /api/stores - Listar lojas públicas
 router.get('/', async (req, res) => {
   try {
     const storesResult = await query(`
       SELECT id, store_code, store_name, store_description, logo_url,
-             primary_color, secondary_color, domain
+             primary_color, secondary_color, domain, plano
       FROM stores
       WHERE is_active = true
       ORDER BY store_name
@@ -27,10 +72,12 @@ router.get('/admin', authenticate, requireStoreAdmin, async (req, res) => {
     let queryStr = `
       SELECT s.*, 
              COUNT(p.id) as total_products,
-             COUNT(DISTINCT c.id) as total_categories
+             COUNT(DISTINCT c.id) as total_categories,
+             st.plano as plan
       FROM stores s
       LEFT JOIN products p ON s.id = p.storeId
       LEFT JOIN categories c ON s.id = c.storeId
+      LEFT JOIN settings st ON s.id = st.storeId
     `;
     
     const params = [];
@@ -58,6 +105,115 @@ router.get('/admin', authenticate, requireStoreAdmin, async (req, res) => {
   }
 });
 
+// POST /api/stores/register - Cadastro público via wizard
+router.post('/register', async (req, res) => {
+  try {
+    const { name, email, whatsapp, cnpj, plan } = req.body
+
+    if (!name || !email || !whatsapp || !cnpj || !plan) {
+      return res.status(400).json({
+        success: false,
+        message: 'Todos os campos são obrigatórios'
+      })
+    }
+
+    // Importar bcrypt para hash da senha
+    const bcryptModule = await import('bcryptjs');
+    const bcrypt = bcryptModule.default || bcryptModule;
+    
+    // Gerar hash da senha
+    const senha = '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/5QqQqQq'; // Placeholder, will be replaced
+
+    // Inserir a loja (tratando valores nulos)
+    const storeResult = await query(`
+      INSERT INTO stores (
+        name, email, whatsapp_number, description, cnpj, inscricao_estadual,
+        address, instagram, facebook, youtube, horarios,
+        politicas_troca, politicas_gerais, senha, isActive
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)
+    `, [
+      name || '',
+      email || '',
+      whatsapp || '',
+      '', // description will be updated later
+      cnpj || '',
+      '', // inscricao_estadual will be updated later
+      '', // address will be updated later
+      '', // instagram will be updated later
+      '', // facebook will be updated later
+      '', // youtube will be updated later
+      '', // horarios will be updated later
+      '', // politicas_troca will be updated later
+      '', // politicas_gerais will be updated later
+      senha
+    ]);
+
+    const storeId = storeResult.insertId;
+    
+    // Gerar código único da loja
+    const generatedStoreCode = await generateUniqueStoreCode(name, storeId, null);
+    
+    // Atualizar a loja com o store_code e dados adicionais
+    await query(`
+      UPDATE stores 
+      SET store_code = ?, store_name = ?, store_description = ?, 
+          whatsapp_number = ?, address = ?, is_active = true
+      WHERE id = ?
+    `, [generatedStoreCode, name, '', whatsapp, '', storeId]);
+
+    // Criar configurações padrão
+    const limitesPorPlano = {
+      'Start': { produtos: 500, fotos: 2 },
+      'Pro': { produtos: 1000, fotos: 3 },
+      'Max': { produtos: 9999, fotos: 4 }
+    };
+    
+    const limites = limitesPorPlano[plan] || limitesPorPlano['Start'];
+    
+    await query(`
+      INSERT INTO settings (storeId, plano, limite_produtos, limite_fotos_produto) 
+      VALUES (?, ?, ?, ?)
+    `, [storeId, plan, limites.produtos, limites.fotos]);
+
+    // Criar aparência com cores escolhidas
+    await query(`
+      INSERT INTO appearance (storeId, cor_primaria, cor_secundaria, cor_botoes) 
+      VALUES (?, ?, ?, ?)
+    `, [storeId, '#000000', '#666666', '#000000']);
+    
+    // Criar usuário admin_loja
+    await query(`
+      INSERT INTO users (name, email, senha, tipo, storeId, isActive) 
+      VALUES (?, ?, ?, 'admin_loja', ?, true)
+    `, [
+      name, 
+      email || `${generatedStoreCode}@example.com`, 
+      senha, 
+      storeId
+    ]);
+
+    res.status(201).json({
+      success: true,
+      message: 'Loja criada com sucesso',
+      data: {
+        store: {
+          id: storeId,
+          name: name,
+          email: email
+        },
+        storeCode: generatedStoreCode,
+        plan
+      }
+    });
+  } catch (error) {
+    console.error('❌ Erro ao registrar loja:', error.message)
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    })
+  }
+});
+
 // POST /api/stores - Criar nova loja (admin)
 router.post('/', authenticate, requireStoreAdmin, async (req, res) => {
   try {
@@ -81,7 +237,8 @@ router.post('/', authenticate, requireStoreAdmin, async (req, res) => {
     } = req.body;
 
     // Importar bcrypt para hash da senha
-    const bcrypt = await import('bcryptjs');
+    const bcryptModule = await import('bcryptjs');
+    const bcrypt = bcryptModule.default || bcryptModule;
     
     // Gerar hash da senha
     const senha = password ? await bcrypt.hash(password, 12) : '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/5QqQqQq';
@@ -89,14 +246,14 @@ router.post('/', authenticate, requireStoreAdmin, async (req, res) => {
     // Inserir a loja
     const storeResult = await query(`
       INSERT INTO stores (
-        name, email, whatsapp, description, cnpj, inscricao_estadual,
-        endereco, instagram, facebook, youtube, horarios,
+        name, email, whatsapp_number, description, cnpj, inscricao_estadual,
+        address, instagram, facebook, youtube, horarios,
         politicas_troca, politicas_gerais, senha, isActive
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)
     `, [
-      name, 
-      email, 
-      whatsapp, 
+      name,
+      email,
+      whatsapp,
       description,
       cnpj,
       inscricao_estadual,
@@ -189,19 +346,35 @@ router.put('/:id', authenticate, requireStoreAdmin, async (req, res) => {
       });
     }
 
+    // Preparar valores substituindo undefined por null
+    const values = [
+      name ?? null,
+      email ?? null,
+      whatsapp ?? null,
+      description ?? null,
+      cnpj ?? null,
+      inscricao_estadual ?? null,
+      endereco ?? null,
+      instagram ?? null,
+      facebook ?? null,
+      youtube ?? null,
+      horarios ?? null,
+      politicas_troca ?? null,
+      politicas_gerais ?? null,
+      name ?? null,
+      description ?? null,
+      id
+    ];
+
     const result = await query(`
       UPDATE stores SET 
-        name = ?, email = ?, whatsapp = ?, description = ?,
-        cnpj = ?, inscricao_estadual = ?, endereco = ?,
+        name = ?, email = ?, whatsapp_number = ?, description = ?,
+        cnpj = ?, inscricao_estadual = ?, address = ?,
         instagram = ?, facebook = ?, youtube = ?, horarios = ?,
         politicas_troca = ?, politicas_gerais = ?,
-        store_name = ?, store_description = ?, whatsapp_number = ?, address = ?
+        store_name = ?, store_description = ?
       WHERE id = ?
-    `, [
-      name, email, whatsapp, description, cnpj, inscricao_estadual,
-      endereco, instagram, facebook, youtube, horarios,
-      politicas_troca, politicas_gerais, name, description, whatsapp, endereco, id
-    ]);
+    `, values);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({
@@ -288,17 +461,34 @@ router.get('/:id', async (req, res) => {
     if (!id) {
       return res.status(400).json({ success: false, message: 'ID da loja é obrigatório.' });
     }
+    
     const storeResult = await query(`
-      SELECT id, store_code, store_name, store_description, logo_url,
-             primary_color, secondary_color, whatsapp_number, email,
-             address, city, state, settings, domain
-      FROM stores
-      WHERE id = ? AND is_active = true
+      SELECT s.*, st.plano, st.limite_produtos, st.limite_fotos_produto
+      FROM stores s
+      LEFT JOIN settings st ON s.id = st.storeId
+      WHERE s.id = ? AND s.is_active = true
     `, [id]);
+    
     if (storeResult.length === 0) {
       return res.status(404).json({ success: false, message: 'Loja não encontrada' });
     }
-    res.json({ success: true, data: storeResult[0] });
+
+    const storeData = storeResult[0];
+    
+    // Adicionar settings como objeto
+    const settings = {
+      limite_produtos: storeData.limite_produtos,
+      limite_fotos_produto: storeData.limite_fotos_produto,
+      plano: storeData.plano
+    };
+
+    res.json({ 
+      success: true, 
+      data: {
+        ...storeData,
+        settings
+      }
+    });
   } catch (error) {
     console.error('Erro ao buscar loja por id:', error);
     res.status(500).json({ success: false, message: 'Erro interno do servidor' });
@@ -332,6 +522,76 @@ router.get('/resolve-store', async (req, res) => {
   } catch (error) {
     console.error('Erro ao resolver storeId:', error);
     res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
+  }
+});
+
+// GET /api/store-limits - Buscar limites da loja
+router.get('/limits', authenticate, async (req, res) => {
+  try {
+    const storeId = req.query.storeId ? Number(req.query.storeId) : req.user.storeId;
+    
+    // Buscar configurações da loja
+    const settings = await query(`
+      SELECT plano, limite_produtos, limite_fotos_produto 
+      FROM settings 
+      WHERE storeId = ?
+    `, [storeId]);
+    
+    if (settings.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Configurações da loja não encontradas' 
+      });
+    }
+    
+    // Contar produtos atuais
+    const productCount = await query(`
+      SELECT COUNT(*) as total 
+      FROM products 
+      WHERE storeId = ?
+    `, [storeId]);
+    
+    const config = settings[0];
+    const currentProducts = productCount[0].total;
+    const limitProducts = config.limite_produtos;
+    const limitPhotos = config.limite_fotos_produto;
+    
+    // Calcular percentual usado
+    const percentUsed = Math.round((currentProducts / limitProducts) * 100);
+    
+    // Verificar se pode cadastrar mais
+    const canAddProduct = currentProducts < limitProducts;
+    
+    // Status do limite
+    let status = 'ok';
+    if (percentUsed >= 100) status = 'exceeded';
+    else if (percentUsed >= 80) status = 'warning';
+    else if (percentUsed >= 60) status = 'caution';
+    
+    res.json({
+      success: true,
+      data: {
+        plano: config.plano,
+        products: {
+          current: currentProducts,
+          limit: limitProducts,
+          remaining: limitProducts - currentProducts,
+          percentUsed,
+          canAdd: canAddProduct,
+          status
+        },
+        photos: {
+          limitPerProduct: limitPhotos
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('Erro ao buscar limites:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erro interno do servidor' 
+    });
   }
 });
 

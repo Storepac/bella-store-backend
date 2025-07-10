@@ -6,14 +6,14 @@ const router = express.Router();
 // GET /api/categories - Listar categorias
 router.get('/', async (req, res) => {
   try {
-    const { store_id } = req.query;
+    const { storeId } = req.query;
 
-    let whereClause = 'WHERE is_active = true';
+    let whereClause = 'WHERE c.isActive = true';
     const values = [];
 
-    if (store_id) {
-      whereClause += ' AND store_id = $1';
-      values.push(store_id);
+    if (storeId) {
+      whereClause += ' AND c.storeId = ?';
+      values.push(storeId);
     }
 
     const categoriesResult = await query(`
@@ -21,15 +21,15 @@ router.get('/', async (req, res) => {
         c.*,
         COUNT(p.id) as product_count
       FROM categories c
-      LEFT JOIN products p ON c.id = p.category_id AND p.status = 'active'
+      LEFT JOIN products p ON c.id = p.categoryId AND p.status = 'active'
       ${whereClause}
       GROUP BY c.id
-      ORDER BY c.sort_order, c.name
+      ORDER BY c.name
     `, values);
 
     res.json({
       success: true,
-      data: categoriesResult.rows
+      data: categoriesResult
     });
 
   } catch (error) {

@@ -1,16 +1,20 @@
 import dotenv from 'dotenv';
-import mysql from 'mysql2/promise';
 
 dotenv.config();
 
+const mysql = require('mysql2/promise')
+
 const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
+  host: process.env.DB_HOST || 'bella-mysql-2zfoqj',
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
+  password: process.env.DB_PASSWORD || 'wgmtkfzxykh1gaygjejytl1dmt4qthy0',
   database: process.env.DB_NAME || 'bella_store',
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  acquireTimeout: 60000,
+  timeout: 60000,
+  reconnect: true
 }
 
 const pool = mysql.createPool(dbConfig)
@@ -21,7 +25,7 @@ pool.getConnection()
     connection.release()
   })
   .catch(err => {
-    console.error('❌ Erro ao conectar com o banco de dados local:', err.message)
+    console.error('❌ Erro ao conectar com o banco de dados remoto:', err.message)
   })
 
 // Tratamento de erros de conexão
@@ -50,15 +54,7 @@ async function testConnection() {
   }
 }
 
-// Função query para compatibilidade com ES6 modules
-async function query(sql, params = []) {
-  try {
-    const [rows] = await pool.execute(sql, params)
-    return rows
-  } catch (error) {
-    console.error('❌ Erro na query:', error.message)
-    throw error
-  }
+module.exports = {
+  pool,
+  testConnection
 }
-
-export { pool, testConnection, query } 

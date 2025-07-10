@@ -7,9 +7,12 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
+    "start:local": "powershell -ExecutionPolicy Bypass -File start-local.ps1",
     "test": "jest",
     "setup-db": "node setup-database.js",
     "create-admin": "node create-admin.js",
+    "create-admin-master": "node scripts/create-admin-master.js",
+    "setup-db": "node scripts/setup-database.js",
     "update-db": "node update-database.js",
     "build": "echo 'Backend build complete'"
   },
